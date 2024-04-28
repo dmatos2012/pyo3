@@ -79,25 +79,25 @@ fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.get_or_try_init_type_ref(py, "decimal", "Decimal")
 }
 
-impl ToPyObject for Decimal {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        // TODO: handle error gracefully when ToPyObject can error
-        // look up the decimal.Decimal
-        let dec_cls = get_decimal_cls(py).expect("failed to load decimal.Decimal");
-        // now call the constructor with the Rust Decimal string-ified
-        // to not be lossy
-        let ret = dec_cls
-            .call1((self.to_string(),))
-            .expect("failed to call decimal.Decimal(value)");
-        ret.to_object(py)
-    }
-}
+// impl ToPyObject for Decimal {
+//     fn to_object(&self, py: Python<'_>) -> PyObject {
+//         // TODO: handle error gracefully when ToPyObject can error
+//         // look up the decimal.Decimal
+//         let dec_cls = get_decimal_cls(py).expect("failed to load decimal.Decimal");
+//         // now call the constructor with the Rust Decimal string-ified
+//         // to not be lossy
+//         let ret = dec_cls
+//             .call1((self.to_string(),))
+//             .expect("failed to call decimal.Decimal(value)");
+//         ret.to_object(py)
+//     }
+// }
 
-impl IntoPy<PyObject> for Decimal {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
-    }
-}
+// impl IntoPy<PyObject> for Decimal {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         self.to_object(py)
+//     }
+// }
 
 #[cfg(test)]
 mod test_rust_decimal {
