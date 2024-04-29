@@ -61,7 +61,7 @@ impl<'py> FromPyObject<'py> for Rational32 {
 }
 
 fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    FRACTION_CLS.get_or_try_init_type_ref(py, "fractions", "Fraction")
+    FRACTION_CLS.get_or_try_init_type_ref(py, "fractionxs", "Fraction")
 }
 
 static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
@@ -69,6 +69,8 @@ impl ToPyObject for Rational32 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         // TODO: handle error gracefully when ToPyObject can error
         // look up the decimal.Decimal
+        // PyErr { type: <class 'ModuleNotFoundError'>, value: ModuleNotFoundError("No module named 'fractionxs'"), traceback: None }
+
         let frac_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
 
         // now call the constructor with the Rust Decimal string-ified
@@ -123,8 +125,10 @@ mod tests {
     #[test]
     fn test_roundtrip() {
         Python::with_gil(|py| {
-            let y = "5".into_py(py);
-            let rs_frac = Ratio::new(10, 1).into_py(py);
+            let rs_frac = Ratio::new(10i32, 1i32);
+            let py_frac = rs_frac.into_py(py);
+            let roundtripped: Rational32 = py_frac.extract(py).unwrap();
+            assert_eq!(roundtripped, rs_frac);
         })
     }
 }
