@@ -10,7 +10,7 @@ use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, 
 use std::os::raw::c_char;
 
 use num_rational::Ratio;
-use num_rational::Rational32;
+use num_rational::{Rational32, Rational64};
 
 // To allow a new type, we need to do the following
 // impl FromPyObject
@@ -60,6 +60,33 @@ impl<'py> FromPyObject<'py> for Rational32 {
     }
 }
 
+fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    FRACTION_CLS.get_or_try_init_type_ref(py, "fractions", "Fraction")
+}
+
+static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+impl ToPyObject for Rational32 {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        // TODO: handle error gracefully when ToPyObject can error
+        // look up the decimal.Decimal
+        let frac_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
+
+        // now call the constructor with the Rust Decimal string-ified
+        // to not be lossy
+        // TODO: is this waht we want? We want it in either
+        // string and ints, so choose what to do?
+        let ret = frac_cls
+            .call1((self.to_string(),))
+            .expect("failed to call fractions.Fraction(value)");
+        ret.to_object(py)
+    }
+}
+impl IntoPy<PyObject> for Rational32 {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_object(py)
+    }
+}
+
 // You still need to implement
 // num.into_py(py)
 // to convert rs obj to py obj
@@ -83,12 +110,21 @@ mod tests {
             )
             .unwrap();
             let py_frac = locals.get_item("py_frac").unwrap().unwrap();
+            // let roundtripped: Rational32 = py_frac.extract().unwrap();
             let roundtripped: Rational32 = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(10, 1);
             assert_eq!(roundtripped, rs_frac);
 
             // dbg!(roundtripped);
             // let roundtripped: Rational32 = py_frac.extract();
+        })
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        Python::with_gil(|py| {
+            let y = "5".into_py(py);
+            let rs_frac = Ratio::new(10, 1).into_py(py);
         })
     }
 }
