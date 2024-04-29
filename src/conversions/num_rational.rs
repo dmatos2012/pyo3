@@ -1,3 +1,4 @@
+use crate::err::PyErr;
 use crate::exceptions::PyValueError;
 use crate::ffi;
 use crate::sync::GILOnceCell;
@@ -61,26 +62,38 @@ impl<'py> FromPyObject<'py> for Rational32 {
 }
 
 fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    FRACTION_CLS.get_or_try_init_type_ref(py, "fractionxs", "Fraction")
+    FRACTION_CLS.get_or_try_init_type_ref(py, "fractions", "Fraction")
 }
 
 static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
 impl ToPyObject for Rational32 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         // TODO: handle error gracefully when ToPyObject can error
         // look up the decimal.Decimal
         // PyErr { type: <class 'ModuleNotFoundError'>, value: ModuleNotFoundError("No module named 'fractionxs'"), traceback: None }
+        // let func_res = || -> PyResult<PyObject> {
+        let func_res = || -> PyResult<PyObject> {
+            // let frac_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
+            let frac_cls = get_fraction_cls(py)?;
 
-        let frac_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
+            // expect("failed to load fractions.Fraction");
 
-        // now call the constructor with the Rust Decimal string-ified
-        // to not be lossy
-        // TODO: is this waht we want? We want it in either
-        // string and ints, so choose what to do?
-        let ret = frac_cls
-            .call1((self.to_string(),))
-            .expect("failed to call fractions.Fraction(value)");
-        ret.to_object(py)
+            // now call the constructor with the Rust Decimal string-ified
+            // to not be lossy
+            // TODO: is this waht we want? We want it in either
+            // string and ints, so choose what to do?
+            dbg!(self.to_string());
+            let ret = frac_cls.call1((self.to_string(),))?;
+            // can this fail?
+            Ok(ret.to_object(py))
+            // Ok(())
+        };
+        match func_res() {
+            Ok(obj) => obj,
+            //TODO: Is this the way to handle this?
+            Err(e) => panic!("{:?}", e),
+        }
     }
 }
 impl IntoPy<PyObject> for Rational32 {
@@ -125,10 +138,20 @@ mod tests {
     #[test]
     fn test_roundtrip() {
         Python::with_gil(|py| {
-            let rs_frac = Ratio::new(10i32, 1i32);
+            let rs_frac = Ratio::new(10i32, 3i32);
+            // let rs_frac = Ratio::from_float(0.5).unwrap();
+            // rational32
+
+            // let num = Ratio::from_float(0.5).unwrap();
+            // let den = Ratio::from_float(1.0).unwrap();
             let py_frac = rs_frac.into_py(py);
             let roundtripped: Rational32 = py_frac.extract(py).unwrap();
             assert_eq!(roundtripped, rs_frac);
         })
     }
 }
+
+// Fraction("10.3") and Fraction(10.3) are different in PYthon
+// Handle those
+// Handle BigInt on to_object when you do Ratio::from_float(0.5).unwrap();
+// that is equivalent to pythons Fraction(0.5)
