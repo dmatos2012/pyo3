@@ -193,6 +193,7 @@ macro_rules! complex_conversion {
         }
     };
 }
+
 complex_conversion!(f32);
 complex_conversion!(f64);
 
